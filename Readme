@@ -1,0 +1,168 @@
+									Tema REGEX LFA
+						   -Lungu-Stan Vlad-Constantin 334CB-
+	Abordarea aleasa de mine pentru a rezolva tema este fix cea indicata in enunt. Mai exact, am
+inceput prin a parsa expresia regulata primita la intrare, apoi am transformat-o in expresie
+regulata. Expresia regulata astfel obtinuta am transformat-o intr-un nfa, care la randul lui a 
+fost transformat intr-un dfa. Dfa-ul l-am rulat pentru fiecare input in parte, obtinand solutia.
+Tema obtine punctajul maxim pe masina locala, la momentul scrierii acestui README vmchecker fiind
+inca nefunctional. In continuare voi prezenta in detaliu fiecare pas in parte.
+	
+	Parsare:
+	
+		Parsarea a fost facuta folosind ANTLR(si asa ne-a tot zis Matei de ANTLR, era si pacat sa
+	nu profit de oportunitate, nu-i asa? :p ). Pentru asta am facut o gramatica, rGex.g4, porind
+	de la un exemplu gasit pe stack overflow(won't reainvent the wheel,will I?). Regula de start
+	se numeste regex si marcheaza orice fel de combinatie posibila. Aceasta poate trece in 
+	regex '|' regex2 sau regex2(orice alternat cu ceva fara alternari sau ceva fara alternari).
+	Regex separa, astfel, partile alternate. Regex2 e un regex fara alternari. Acesta la randul
+	sau poate fi o concatenare de regex2 cu regex3, sau un regex3. Regex2 separa concatenarile. 
+	Regex3 poate fi un regex4 pe care se aplica *,?,+, sau repeat. Regex4 este o paranteza, care
+	poate avea in ea orice(regex, regula initiala), "." (adica orice caracter din alfabet), un set
+	de valori([ce e in interior]), sau continut, adica o cifra sau o litera. Regula repeat surprinde
+	constructia "{a,b}", care trece fie in single("{a}" care indica repetitia de a ori a reegexului
+	pe care este aplicata) sau varianta extinsa "{a,b}". repeatAtom permite ca a sau b sa lipseasca.
+	Acesta trece fie in nimic, fie intr-un number. Number compune numerele din DIGITs(cifre)( regula
+	NUMBER: DIGIT+ imi facea figuri). Valorile din setul de numere (setvals) poate fi format dintr-un
+	range sau dintr-un caracter de vaza(continut). Range-ul este formati din doua cifre alaturate,
+	doua litere mici alaturate, sau doua litere mari alaturate.
+		Odata scrisa gramatica am purces spre a o compila cu antlr4. Contrar exemplului lui Matei, 
+	pentru compilare am folosit direct "antlr4 -Dlanguage=Python3 rGex.g4". Asta a creat fisierele
+	necesare. Conform indicatiilor din curs, am completat listener-ul creat pentru a obtine regexul
+	dorit. 
+		Pentru crearea regexului am folosit 2 stive(pentru regex si pentru set) si un numar. 
+		
+		regex:
+			La iesirea din nodul de regex stiu ca voi avea pe stiva cele doua expresii regulate 
+		generate prin parcurgerea fiilor nodului curent din arborele de parsare. Ii scot de pe stiva
+		si pun in loc RegEx(ALTERNATION,st,dr). Asta daca in context regasesc "regex". Altfel, nu fac
+		nimic,intr-u cat pe stiva se alfa deja rezultatul cautat.
+		
+		regex2:
+			Identic cu regex
+			
+		regex3:
+			Actually nothing, asta indica doar prezenta "alteratorilor" ( *,?,+,{}). Pus in gramatica
+		pentru lizibilitate mai buna.
+		
+		Kleene:
+			La iesirea din regula stiu ca am in varful stivei regex-ul pe care este aplicat *. Scot
+		regexul de pe stiva si pun in loc RegEx(STAR,stack.top())
+		
+		Plus:
+			Identic Kleene
+			
+		Qmark:
+			Identic Kleene
+			
+		Repeat:
+			Daca contextul contine un single nu fac nimic, intr-u cat regula de repeat s-a ocupat
+		deja de tot si am pe stiva rezultatul necesar. Altfel inseamna ca sunt in cazul "{a,b}". In 
+		cazul asta scot de pe stiva de regexuri expresia regulata pe care se aplica regula de repeat,
+		iar de pe stiva auxiliara(setStack, pe care nu o folosesc doar pentru seturi. Amobservat ca 
+		poate fi refolosita) cele doua valori corespunzatoare capetelor. Pun pe stiva de regexuri
+		rezultatul, adica Range,regex,st,dr.
+		
+		Single:
+			Face ce face si repeat, dar pentru un singur repeatAtom.
+		
+		RepeatAtom:
+			Daca in context se gaseste un number, nu fac nimic(am deja pe setStack numarul). Altfel
+		pun pe setStack -1(indcatorul de lipsa capat).
+		
+		Regex4:
+			De decor, la fel ca regex3
+		
+		AnY:
+			Pun pe stiva regexul corespunzator lui "."
+			
+		Paranthesis:
+			Ignor cu gratie. Cand dau de regula asta am deja pe stiva regexul dintre ele, asa ca e 
+		totul in regula(il las acolo)
+		
+		SeT:
+			La iesirea din regula asta stiu ca am pe setStack tot continutul setului, asa ca pun
+		pe stiva de regexuri RegEx(SYMBOL_SET, setStack), inlocuind setStack cu o stiva goala.
+		
+		Setvals:
+			Daca in context am continut, inseamna ca pe stiva de regexuri a fost pus in mod eronat un
+		caracter care facea parte din set. Extrag simbolul asociat regexului respectiv si-l pun pe 
+		stiva de set. Altfel stiu ca a fost un range, care e pus cum trebuie pe setStack.
+		
+		Continut:
+			in functie de simbol, pun pe stiva de regexuri o noua expresie regulata cu simbol simplu.
+			
+		Range:
+			Iau simbolurile celor doi fii(simboluri simple) si pun pe stiva perechea celor doua.
+			
+		Number:
+			La iesirea din regula asta construiesc numarul. Daca contextul nu mai are number, termin de
+		construit numarul, il pun pe stiva de set si resetez numarul listenerului actual.
+		
+		Parcurgand arborele de parsare mi se creeaza expresia regulata dorita pe stiva. La finalul parsarii
+	pur si simplu o scot din varful stivei.
+	
+Bun, pana acum am obtinut cele 0.5 puncte pentru parsare. Ramane restul. 
+
+	Regex_To_Regular Expression:
+		Am facut functia regex_to_reg in regular_expression.py, care primeste un regex si obtine din
+	el expresia regulata aferenta.
+	
+		Reguli notabile:
+			
+			cazul ANY:
+				SYMBOL_ANY este inlocuit cu Alternare in lant de toate caracterele posibile
+			
+			cazul Set:
+				SYMBOL_SET este inlocuit cu Alternari de toate caracterele simple din set si
+			range-urile extinse.
+			
+			cazul Maybe:
+				Expresia regulata alternata cu EMPTY_STRING
+			
+			cazul PLUS:
+				Epresia regulata alternata cu STAR-ul ei
+			
+			cazul Range:
+				Aflu intai numarul minim de aparitii ale expresiei regulate. Cu acesta formez expresia
+			regulata de baza. Daca partea din dr lipseste, completez cu star-ul Expresiei regulate initale.
+			Daca nu lipseste, fac toate combinatiile posibile, adaugandu-le la o alternare.
+			
+		In momentul actual am doar o expresie regulata normala.
+		
+	RE_to_NFA:
+		Am copiat tema pe care am facut-o pentru laborator, cea de transformat o expresie regulata
+	intr-un nfa, folosind algoritmul Thompson. Cum a fost deja verificat, nu mai stau sa explic ce 
+	am facut(sper ca nu e necesar).
+	
+	NFA_TO_DFA:
+		Prima data am obtinut inchiderile epsilon. Apoi am trecut la construirea noului automat. Starea
+	initiala noua, botezata cu 0, este asociata inchiderii apislon a starii initiale a nfa-ului. Construiesc
+	dfa-ul folosind o stiva. Initial pun pe stiva noua stare curenta. Incerc sa construiesc toate tranzitiile 
+	posibile. Pentru fiecare litera din alfabet, iau toate starile ce compun starea curenta si combin toate
+	epsilon tranzitiile lor, obtinand starea urmatoare. Verific, apoi, in setul de stari deja formate daca
+	am mai intalnt-o. Daca am intalnit-o, doar adaug in noul delta noua tranzitie gasita. Altfel, mai intai
+	intai adaug noua stare in structurile de date corespunzatoare starilor. Daca setul corespunzator starii 
+	urmatoare e gol, ignor cu desavarsire tranzitia asta( stiu, ca sa fie 100% corect ar fi trebuit sa fac un
+	sink state si sa bag o tranzitie catre acela, dar am considerat ca e inutila munca asta in plus. Pot rejecta
+	un cuvant in momentul in care nu gasesc o tranzitie potrivita pentru configuratia curenta). In finalul
+	construiesc setul de stari posibile si stari finale si intorc dfa-ul
+	
+	RULARE DFA:
+		Pentru a rula automatul obtinut cu atata truda am facut o functie in clasa DFA, numita sugestiv
+	check. Acesta primeste un string. Poerneste din starea initiala si la fiecare pas consuma cate un simbol din
+	stringul de input. Daca ajunge intr-o stare in care nu gaseste tranzitie, inseamna ca tranzitia respectiva
+	ar fi dus intr-un sink state si intorc imediat False. Dupa consumarea cuvantului, verific starea in care s-a
+	ajuns. Daca este o stare finala, inseamna ca stringul de input a fost acceptat si intorc True. Altfel
+	intorc False, cuvantul find rejectat. 
+	
+	In main, dupa obtinerea regexului, il transform in expresie regulata aplicand functia regex_to_reg descrisa mai
+sus. Expresia regulata astfel obtinuta o transform in nfa folosind functia re_to_nfa. Nfa-ul in transform in dfa 
+cu functia nfa_to_dfa. In momentul acesta am obtinut dfa-ul. Pentru fiecare cuvant din input elimin '\n'-ul de la 
+final si rulez dfa-ul pe acesta, afisand la stdout rezultatul.
+
+That's all folks!
+
+UPDATE:
+	Ca sa respect cerinta cu Makefile pt ANTLR, am dat copy paste la ce scrisesem in rGexListener.py in visitor.py,
+noua clasa fiind numita Visitor si am facut un makefile cu doua reguli, build, care genereaza lexerul si parserul,
+si clean, care sterge toate fisierele generate.
